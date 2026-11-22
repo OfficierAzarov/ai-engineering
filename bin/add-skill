@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Ajoute (ou met à jour) un skill d'un autre projet dans ce repo, puis pousse.
+# Usage : add-skill <dossier-du-skill> [--no-push]
+set -euo pipefail
+
+SRC_ARG="${1:-}"; MODE="${2:-}"
+[ -n "$SRC_ARG" ] || { echo "Usage : add-skill <dossier-du-skill> [--no-push]" >&2; exit 1; }
+
+REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+SRC="$(cd "$SRC_ARG" && pwd -P)"   # suit les liens symboliques (ex. .claude/skills/x -> .agents/skills/x)
+NAME="$(basename "$SRC")"
+
+[ -f "$SRC/SKILL.md" ] || { echo "Pas de SKILL.md dans $SRC" >&2; exit 1; }
+[ -z "$(git -C "$REPO" status --porcelain)" ] || { echo "Le repo $REPO a des changements non commités." >&2; exit 1; }
+
+git -C "$REPO" pull -q --rebase
+if [ -d "$REPO/skills/$NAME" ]; then VERB="update"; else VERB="add"; fi
+mkdir -p "$REPO/skills/$NAME"
+rsync -a --delete --exclude '.git' --exclude '.DS_Store' "$SRC/" "$REPO/skills/$NAME/"
+
+git -C "$REPO" add "skills/$NAME"
+if git -C "$REPO" diff --cached --quiet; then echo "Rien à changer pour $NAME."; exit 0; fi
+git -C "$REPO" commit -q -m "feat(skills): $VERB the $NAME skill"
+[ "$MODE" = "--no-push" ] || git -C "$REPO" push -q origin HEAD
+echo "OK : $VERB $NAME ($(git -C "$REPO" rev-parse --short HEAD))"
