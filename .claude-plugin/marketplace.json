@@ -1,0 +1,11 @@
+{
+  "name": "ai-engineering",
+  "owner": { "name": "OfficierAzarov" },
+  "plugins": [
+    {
+      "name": "ai-engineering",
+      "source": "./",
+      "description": "Skills qui génèrent des schémas interactifs (architecture, architecture hexagonale, harnais) et la règle qui les tient à jour."
+    }
+  ]
+}
