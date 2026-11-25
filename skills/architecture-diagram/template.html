@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>L'architecture du projet</title>
+    <style>
+      /* Palette Monokai Soda : fond #1a1a1a, texte #f6f6ef, accents cyan / vert / orange / violet / gris. */
+      :root {
+        color-scheme: dark;
+        --bg: #1a1a1a;
+        --ink: #f6f6ef;
+        --muted: #a3a398;
+        --line: #8f908a;
+        --card: #232323;
+        --card-bd: #3e3d32;
+        --c1-bd: #66d9ef;
+        --c1-bg: #1f3438;
+        --c2-bd: #a6e22e;
+        --c2-bg: #2b3a26;
+        --c3-bd: #fd971f;
+        --c3-bg: #3c2d1b;
+        --c4-bd: #ae81ff;
+        --c4-bg: #30293c;
+        --c5-bd: #8f908a;
+        --c5-bg: #2a2a28;
+        --accent: #f92672;
+        --zone-bg: rgba(255, 255, 255, 0.03);
+        --zone-bd: #55554d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          16px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1064px;
+        margin: 0 auto;
+        padding: 32px 16px 0;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 1.8rem;
+        line-height: 1.2;
+      }
+      .lead {
+        margin: 0 0 20px;
+        color: var(--muted);
+        max-width: 72ch;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px 24px;
+        margin: 0 0 16px;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .legend li {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        border: 2px solid;
+      }
+      .swatch.dashed {
+        border-style: dashed;
+        background: transparent;
+        border-color: var(--ink);
+      }
+      .filters {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .filters button {
+        font: inherit;
+        color: var(--ink);
+        background: var(--card);
+        border: 1px solid var(--card-bd);
+        border-radius: 999px;
+        padding: 3px 14px;
+        cursor: pointer;
+      }
+      .filters button[aria-pressed="true"] {
+        border-color: var(--accent);
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .filters button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .diagram {
+        overflow-x: auto;
+        padding-bottom: 8px;
+      }
+      svg {
+        display: block;
+        width: 100%;
+        min-width: 860px;
+        height: auto;
+      }
+      svg text {
+        fill: var(--ink);
+        font-family: inherit;
+        pointer-events: none;
+      }
+      .t-main {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .t-sub {
+        font-size: 12px;
+        fill: var(--muted);
+      }
+      .t-zone {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        fill: var(--muted);
+      }
+      .t-link {
+        font-size: 11px;
+        fill: var(--muted);
+        paint-order: stroke;
+        stroke: var(--bg);
+        stroke-width: 4px;
+      }
+      .zone {
+        fill: var(--zone-bg);
+        stroke: var(--zone-bd);
+        stroke-width: 1.5;
+        stroke-dasharray: 5 4;
+      }
+      .link {
+        stroke: var(--line);
+        stroke-width: 1.5;
+        fill: none;
+        transition: opacity 0.15s;
+      }
+      .link-dash {
+        stroke-dasharray: 4 4;
+      }
+      .link.dim {
+        opacity: 0.15;
+      }
+      .link.on {
+        stroke: var(--accent);
+        stroke-width: 2.5;
+      }
+      #arrow path {
+        fill: var(--line);
+      }
+
+      .node {
+        cursor: pointer;
+        outline: none;
+        transition: opacity 0.15s;
+      }
+      .node.dim {
+        opacity: 0.2;
+      }
+      .node rect {
+        stroke-width: 1.5;
+        transition: stroke-width 0.1s;
+      }
+      .node.planned rect {
+        stroke-dasharray: 6 4;
+      }
+      .node:hover rect {
+        stroke-width: 2.5;
+      }
+      .node:focus-visible rect {
+        stroke: var(--accent);
+        stroke-width: 3;
+        stroke-dasharray: 5 3;
+      }
+      .node[aria-pressed="true"] rect {
+        stroke: var(--accent);
+        stroke-width: 3.5;
+      }
+      .s1 rect {
+        fill: var(--c1-bg);
+        stroke: var(--c1-bd);
+      }
+      .s2 rect {
+        fill: var(--c2-bg);
+        stroke: var(--c2-bd);
+      }
+      .s3 rect {
+        fill: var(--c3-bg);
+        stroke: var(--c3-bd);
+      }
+      .s4 rect {
+        fill: var(--c4-bg);
+        stroke: var(--c4-bd);
+      }
+      .s5 rect {
+        fill: var(--c5-bg);
+        stroke: var(--c5-bd);
+      }
+
+      .card {
+        position: sticky;
+        bottom: 16px;
+        max-height: 45vh;
+        overflow-y: auto;
+        margin: 16px 0 32px;
+        padding: 14px 18px 16px;
+        background: var(--card);
+        border: 1px solid var(--card-bd);
+        border-left: 6px solid var(--kind, var(--c5-bd));
+        border-radius: 10px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+      }
+      .card-kind {
+        margin: 0;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .card h2 {
+        margin: 2px 0 6px;
+        font-size: 1.15rem;
+      }
+      .card p {
+        margin: 0;
+      }
+      .card .practice {
+        margin-top: 10px;
+        padding: 8px 12px;
+        background: var(--c5-bg);
+        border-radius: 6px;
+        font-size: 0.95rem;
+      }
+      .card .practice strong {
+        color: var(--accent);
+      }
+      .card .related {
+        margin-top: 8px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .card .related button {
+        font: inherit;
+        color: var(--ink);
+        background: none;
+        border: 0;
+        padding: 0;
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-color: var(--accent);
+        text-underline-offset: 3px;
+      }
+      .card .related button:hover,
+      .card .related button:focus-visible {
+        color: var(--accent);
+      }
+      .ide-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 20px;
+        margin: 0 0 16px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .ide-bar select,
+      .ide-bar input {
+        font: inherit;
+        color: var(--ink);
+        background: var(--card);
+        border: 1px solid var(--card-bd);
+        border-radius: 6px;
+        padding: 3px 8px;
+      }
+      .ide-bar input {
+        width: 26ch;
+      }
+      .ide-bar select:focus-visible,
+      .ide-bar input:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .card .files {
+        margin-top: 8px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .card .files a {
+        color: var(--ink);
+        text-decoration: underline;
+        text-decoration-color: var(--accent);
+        text-underline-offset: 3px;
+      }
+      .card .files a:hover,
+      .card .files a:focus-visible {
+        color: var(--accent);
+      }
+      code {
+        font:
+          0.9em ui-monospace,
+          "SF Mono",
+          Menlo,
+          monospace;
+        background: var(--c5-bg);
+        padding: 1px 5px;
+        border-radius: 4px;
+      }
+      .hint {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>L'architecture du projet</h1>
+      <p class="lead">
+        Les grands blocs du système et la façon dont ils s'appellent. Les flèches vont de celui qui
+        appelle vers celui qui est appelé. Clique sur un élément pour savoir ce qu'il fait.
+      </p>
+
+      <div class="toolbar">
+        <ul class="legend" id="legend" aria-label="Légende"></ul>
+        <div class="filters" id="filters" role="group" aria-label="Filtrer par état" hidden>
+          <span>Afficher :</span>
+          <button type="button" data-filter="all" aria-pressed="true">Tout</button>
+          <button type="button" data-filter="built" aria-pressed="false">En place</button>
+          <button type="button" data-filter="planned" aria-pressed="false">Prévu</button>
+        </div>
+      </div>
+
+      <div class="ide-bar">
+        <label>
+          Ouvrir les fichiers dans
+          <select id="ide"></select>
+        </label>
+        <label>
+          Racine du projet
+          <input id="root" type="text" spellcheck="false" placeholder="/chemin/vers/le/projet" />
+        </label>
+        <span class="hint" id="root-hint"></span>
+      </div>
+
+      <div class="diagram">
+        <!-- Le viewBox doit englober toutes les zones et tous les blocs. -->
+        <svg
+          viewBox="0 0 1000 480"
+          role="group"
+          aria-label="Schéma de l'architecture : blocs et appels entre eux"
+        >
+          <defs>
+            <marker
+              id="arrow"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M0 0 L10 5 L0 10 z" />
+            </marker>
+          </defs>
+          <g id="zones"></g>
+          <g id="links"></g>
+          <g id="nodes"></g>
+        </svg>
+      </div>
+
+      <section
+        class="card"
+        id="card"
+        aria-live="polite"
+        aria-label="Explication de l'élément sélectionné"
+      >
+        <p class="card-kind" id="card-kind">Mode d'emploi</p>
+        <h2 id="card-title">Choisis un élément du schéma</h2>
+        <p id="card-text" class="hint">
+          Chaque bloc coloré est cliquable (ou activable au clavier avec Tab puis Entrée). Les
+          flèches des blocs sélectionnés restent visibles, les autres s'estompent.
+        </p>
+        <p class="practice" id="card-practice" hidden></p>
+        <p class="related" id="card-related" hidden></p>
+        <p class="files" id="card-files" hidden></p>
+      </section>
+      <noscript><p>Ce schéma a besoin de JavaScript pour s'afficher.</p></noscript>
+    </main>
+
+    <script>
+      // Catégories : `slot` choisit la couleur (1 cyan, 2 vert, 3 orange, 4 violet, 5 gris).
+      const KINDS = {
+        interface: { label: "Interface", slot: 1 },
+        logic: { label: "Logique métier", slot: 2 },
+        data: { label: "Données", slot: 3 },
+        external: { label: "Service externe", slot: 4 },
+        infra: { label: "Infrastructure", slot: 5 },
+      };
+      const STATUS_LABEL = { built: "En place", planned: "Prévu" };
+
+      // Cadres de regroupement (couches, frontières). Purement décoratifs.
+      const ZONES = [
+        { label: "COUCHE 1 · INTERFACE", x: 0, y: 0, w: 1000, h: 130 },
+        { label: "COUCHE 2 · LOGIQUE", x: 0, y: 170, w: 1000, h: 130 },
+        { label: "COUCHE 3 · DONNÉES ET SERVICES", x: 0, y: 340, w: 1000, h: 130 },
+      ];
+
+      // `files` : chemins relatifs à la racine du projet, qui existent. `practice` : le point de vue fonctionnel.
+      const NODES = [
+        {
+          id: "interface-1",
+          kind: "interface",
+          status: "built",
+          x: 90,
+          y: 44,
+          w: 220,
+          h: 64,
+          label: ["Interface 1", "technologie"],
+          text: "À rédiger : ce que fait ce bloc, 2 ou 3 phrases, et ce qu'il ne fait pas.",
+          practice: "À rédiger : un exemple concret du point de vue de l'utilisateur.",
+          files: ["chemin/du/fichier"],
+        },
+        {
+          id: "interface-2",
+          kind: "interface",
+          status: "built",
+          x: 390,
+          y: 44,
+          w: 220,
+          h: 64,
+          label: ["Interface 2", "technologie"],
+          text: "À rédiger : ce que fait ce bloc, 2 ou 3 phrases, et ce qu'il ne fait pas.",
+          practice: "À rédiger : un exemple concret du point de vue de l'utilisateur.",
+          files: ["chemin/du/fichier"],
+        },
+        {
+          id: "interface-3",
+          kind: "interface",
+          status: "planned",
+          x: 690,
+          y: 44,
+          w: 220,
+          h: 64,
+          label: ["Interface 3", "technologie"],
+          text: "À rédiger : ce que fera ce bloc prévu, 2 ou 3 phrases.",
+          practice: "À rédiger : un exemple concret du point de vue de l'utilisateur.",
+          files: ["chemin/du/fichier"],
+        },
+        {
+          id: "logic-1",
+          kind: "logic",
+          status: "built",
+          x: 190,
+          y: 214,
+          w: 260,
+          h: 64,
+          label: ["Logique 1", "technologie"],
+          text: "À rédiger : ce que fait ce bloc, 2 ou 3 phrases, et ce qu'il ne fait pas.",
+          practice: "À rédiger : un exemple concret du point de vue de l'utilisateur.",
+          files: ["chemin/du/fichier"],
+        },
+        {
+          id: "logic-2",
+          kind: "logic",
+          status: "planned",
+          x: 550,
+          y: 214,
+          w: 260,
+          h: 64,
+          label: ["Logique 2", "technologie"],
+          text: "À rédiger : ce que fera ce bloc prévu, 2 ou 3 phrases.",
+          practice: "À rédiger : un exemple concret du point de vue de l'utilisateur.",
+          files: ["chemin/du/fichier"],
+        },
+        {
+          id: "data-1",
+          kind: "data",
+          status: "built",
+          x: 90,
+          y: 384,
+          w: 220,
+          h: 64,
+          label: ["Données 1", "technologie"],
+          text: "À rédiger : ce que contient ce bloc, 2 ou 3 phrases, et qui y accède.",
+          practice: "À rédiger : un exemple concret du point de vue de l'utilisateur.",
+          files: ["chemin/du/fichier"],
+        },
+        {
+          id: "external-1",
+          kind: "external",
+          status: "planned",
+          x: 390,
+          y: 384,
+          w: 220,
+          h: 64,
+          label: ["Service externe 1", "fournisseur"],
+          text: "À rédiger : ce que fournit ce service, 2 ou 3 phrases, et ce qui se passe s'il tombe.",
+          practice: "À rédiger : un exemple concret du point de vue de l'utilisateur.",
+          files: ["chemin/du/fichier"],
+        },
+        {
+          id: "infra-1",
+          kind: "infra",
+          status: "built",
+          x: 690,
+          y: 384,
+          w: 220,
+          h: 64,
+          label: ["Infrastructure 1", "technologie"],
+          text: "À rédiger : ce que fait ce bloc, 2 ou 3 phrases, et ce qui le déclenche.",
+          practice: "À rédiger : un exemple concret du point de vue de l'utilisateur.",
+          files: ["chemin/du/fichier"],
+        },
+      ];
+
+      // Flèches : de l'appelant vers l'appelé, tracées entre les bords des blocs. `label` et `dashed` sont facultatifs.
+      const LINKS = [
+        { from: "interface-1", to: "logic-1", label: "appelle" },
+        { from: "interface-2", to: "logic-1" },
+        { from: "interface-3", to: "logic-2", dashed: true },
+        { from: "logic-1", to: "logic-2", dashed: true },
+        { from: "logic-1", to: "data-1", label: "lit et écrit" },
+        { from: "logic-2", to: "external-1", dashed: true },
+      ];
+
+      const NS = "http://www.w3.org/2000/svg";
+      const zoneLayer = document.getElementById("zones");
+      const linkLayer = document.getElementById("links");
+      const layer = document.getElementById("nodes");
+      const card = document.getElementById("card");
+      const byId = new Map(NODES.map((node) => [node.id, node]));
+      let current = null;
+
+      function svg(name, attrs, parent) {
+        const element = document.createElementNS(NS, name);
+        for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, value);
+        parent?.append(element);
+        return element;
+      }
+
+      function addText(group, node, lineIndex, text, className) {
+        const twoLines = node.label[1] !== undefined;
+        const centerY = node.y + node.h / 2;
+        let y = centerY + 4;
+        if (twoLines) y = lineIndex === 0 ? centerY - 3 : centerY + 13;
+        const label = svg(
+          "text",
+          { x: node.x + node.w / 2, y, "text-anchor": "middle", class: className },
+          group,
+        );
+        label.textContent = text;
+      }
+
+      function renderZone(zone) {
+        svg(
+          "rect",
+          { class: "zone", x: zone.x, y: zone.y, width: zone.w, height: zone.h, rx: 12 },
+          zoneLayer,
+        );
+        const caption = svg("text", { class: "t-zone", x: zone.x + 14, y: zone.y + 20 }, zoneLayer);
+        caption.textContent = zone.label;
+      }
+
+      function renderNode(node) {
+        const group = svg(
+          "g",
+          {
+            class: `node s${KINDS[node.kind].slot} ${node.status}`,
+            role: "button",
+            tabindex: "0",
+            "aria-pressed": "false",
+            "aria-label": `${node.label.join(", ")} (${STATUS_LABEL[node.status].toLowerCase()})`,
+            "data-id": node.id,
+            "data-status": node.status,
+          },
+          layer,
+        );
+        svg("rect", { x: node.x, y: node.y, width: node.w, height: node.h, rx: 8 }, group);
+        addText(group, node, 0, node.label[0], "t-main");
+        if (node.label[1] !== undefined) addText(group, node, 1, node.label[1], "t-sub");
+      }
+
+      // Point où le segment qui joint les centres de `a` et de `b` sort du bloc `a`.
+      function edge(a, b) {
+        const cx = a.x + a.w / 2;
+        const cy = a.y + a.h / 2;
+        const dx = b.x + b.w / 2 - cx;
+        const dy = b.y + b.h / 2 - cy;
+        const scale = Math.min(
+          dx === 0 ? Infinity : a.w / 2 / Math.abs(dx),
+          dy === 0 ? Infinity : a.h / 2 / Math.abs(dy),
+        );
+        return [cx + dx * scale, cy + dy * scale];
+      }
+
+      function renderLink(link) {
+        const from = byId.get(link.from);
+        const to = byId.get(link.to);
+        const [x1, y1] = edge(from, to);
+        const [x2, y2] = edge(to, from);
+        svg(
+          "path",
+          {
+            class: link.dashed ? "link link-dash" : "link",
+            d: `M${x1} ${y1} L${x2} ${y2}`,
+            "marker-end": "url(#arrow)",
+            "data-from": link.from,
+            "data-to": link.to,
+          },
+          linkLayer,
+        );
+        if (link.label === undefined) return;
+        const caption = svg(
+          "text",
+          { class: "t-link", x: (x1 + x2) / 2 + 6, y: (y1 + y2) / 2 - 4 },
+          linkLayer,
+        );
+        caption.textContent = link.label;
+      }
+
+      function inline(text) {
+        const fragment = document.createDocumentFragment();
+        text.split(/`([^`]+)`/).forEach((part, index) => {
+          if (index % 2 === 0) {
+            fragment.append(part);
+            return;
+          }
+          const code = document.createElement("code");
+          code.textContent = part;
+          fragment.append(code);
+        });
+        return fragment;
+      }
+
+      function renderLegend() {
+        const legend = document.getElementById("legend");
+        const used = new Set(NODES.map((node) => node.kind));
+        for (const [key, kind] of Object.entries(KINDS)) {
+          if (!used.has(key)) continue;
+          const item = document.createElement("li");
+          const swatch = document.createElement("span");
+          swatch.className = "swatch";
+          swatch.style.background = `var(--c${kind.slot}-bg)`;
+          swatch.style.borderColor = `var(--c${kind.slot}-bd)`;
+          item.append(swatch, kind.label);
+          legend.append(item);
+        }
+        if (!NODES.some((node) => node.status === "planned")) return;
+        const planned = document.createElement("li");
+        const swatch = document.createElement("span");
+        swatch.className = "swatch dashed";
+        planned.append(swatch, "Prévu (pointillés)");
+        legend.append(planned);
+        document.getElementById("filters").hidden = false;
+      }
+
+      const IDES = {
+        vscode: { label: "VS Code", url: (path) => `vscode://file${encodeURI(path)}` },
+        cursor: { label: "Cursor", url: (path) => `cursor://file${encodeURI(path)}` },
+        webstorm: {
+          label: "WebStorm",
+          url: (path) => `webstorm://open?file=${encodeURIComponent(path)}`,
+        },
+        idea: {
+          label: "IntelliJ IDEA",
+          url: (path) => `idea://open?file=${encodeURIComponent(path)}`,
+        },
+      };
+      const IDE_KEY = "architecture-diagram-ide";
+      const ROOT_KEY = "architecture-diagram-root";
+
+      function remembered(key) {
+        try {
+          return localStorage.getItem(key);
+        } catch {
+          return null;
+        }
+      }
+      function remember(key, value) {
+        try {
+          localStorage.setItem(key, value);
+        } catch {
+          // Le réglage est un confort : sans stockage, il ne dure que le temps de la page.
+        }
+      }
+
+      // Ouverte en local (file://), la page déduit la racine du projet de sa propre adresse.
+      function detectRoot() {
+        if (location.protocol !== "file:") return "";
+        return decodeURIComponent(location.pathname).replace(/\/docs\/[^/]*$/, "");
+      }
+
+      const ideSelect = document.getElementById("ide");
+      const rootInput = document.getElementById("root");
+      for (const [key, ide] of Object.entries(IDES)) {
+        ideSelect.append(new Option(ide.label, key));
+      }
+      const savedIde = remembered(IDE_KEY);
+      ideSelect.value = savedIde !== null && savedIde in IDES ? savedIde : "vscode";
+      const detectedRoot = detectRoot();
+      rootInput.value = detectedRoot || remembered(ROOT_KEY) || "";
+
+      function projectRoot() {
+        return rootInput.value.trim().replace(/\/+$/, "");
+      }
+
+      function showFiles(files) {
+        const target = document.getElementById("card-files");
+        target.hidden = files === undefined;
+        if (files === undefined) return;
+        const root = projectRoot();
+        const ide = IDES[ideSelect.value];
+        const items = files.map((path) => {
+          if (root === "") {
+            const code = document.createElement("code");
+            code.textContent = path;
+            return code;
+          }
+          const link = document.createElement("a");
+          link.href = ide.url(`${root}/${path}`);
+          link.textContent = path;
+          link.title = `Ouvrir dans ${ide.label}`;
+          return link;
+        });
+        const parts = [root === "" ? "Fichiers : " : `Ouvrir dans ${ide.label} : `];
+        items.forEach((item, index) => {
+          if (index > 0) parts.push(" · ");
+          parts.push(item);
+        });
+        target.replaceChildren(...parts);
+      }
+
+      function refreshIde() {
+        const hint = document.getElementById("root-hint");
+        hint.textContent =
+          projectRoot() === ""
+            ? "Indique le chemin du projet pour transformer les noms de fichiers en liens."
+            : detectedRoot !== ""
+              ? "Racine déduite de l'adresse de la page."
+              : "";
+        if (current !== null) showFiles(byId.get(current).files);
+      }
+
+      ideSelect.addEventListener("change", () => {
+        remember(IDE_KEY, ideSelect.value);
+        refreshIde();
+      });
+      rootInput.addEventListener("input", () => {
+        if (detectedRoot === "" || rootInput.value !== detectedRoot)
+          remember(ROOT_KEY, rootInput.value);
+        refreshIde();
+      });
+
+      function labelled(label, content) {
+        const fragment = document.createDocumentFragment();
+        const strong = document.createElement("strong");
+        strong.textContent = `${label} : `;
+        fragment.append(strong, content);
+        return fragment;
+      }
+
+      function showRelated(id) {
+        const target = document.getElementById("card-related");
+        const groups = [
+          ["Appelle", LINKS.filter((link) => link.from === id).map((link) => link.to)],
+          ["Appelé par", LINKS.filter((link) => link.to === id).map((link) => link.from)],
+        ].filter(([, ids]) => ids.length > 0);
+        target.hidden = groups.length === 0;
+        const parts = [];
+        for (const [heading, ids] of groups) {
+          if (parts.length > 0) parts.push(" — ");
+          parts.push(`${heading} : `);
+          ids.forEach((other, index) => {
+            if (index > 0) parts.push(", ");
+            const button = document.createElement("button");
+            button.type = "button";
+            button.dataset.goto = other;
+            button.textContent = byId.get(other).label[0];
+            parts.push(button);
+          });
+        }
+        target.replaceChildren(...parts);
+      }
+
+      function select(id) {
+        const node = byId.get(id);
+        if (!node) return;
+        for (const group of layer.children) {
+          group.setAttribute("aria-pressed", String(group.dataset.id === id));
+        }
+        for (const link of linkLayer.querySelectorAll("path")) {
+          const touches = link.dataset.from === id || link.dataset.to === id;
+          link.classList.toggle("on", touches);
+          link.classList.toggle("dim", !touches);
+        }
+        current = id;
+        card.style.setProperty("--kind", `var(--c${KINDS[node.kind].slot}-bd)`);
+        document.getElementById("card-kind").textContent =
+          `${KINDS[node.kind].label} · ${STATUS_LABEL[node.status]}`;
+        document.getElementById("card-title").textContent = node.label.join(" · ");
+        const text = document.getElementById("card-text");
+        text.className = "";
+        text.replaceChildren(inline(node.text));
+        const practice = document.getElementById("card-practice");
+        practice.hidden = node.practice === undefined;
+        practice.replaceChildren(
+          ...(node.practice ? [labelled("En pratique", inline(node.practice))] : []),
+        );
+        showRelated(id);
+        showFiles(node.files);
+        history.replaceState(null, "", `#${id}`);
+      }
+
+      function filter(status) {
+        for (const group of layer.children) {
+          group.classList.toggle("dim", status !== "all" && group.dataset.status !== status);
+        }
+        for (const button of document.querySelectorAll("[data-filter]")) {
+          button.setAttribute("aria-pressed", String(button.dataset.filter === status));
+        }
+      }
+
+      ZONES.forEach(renderZone);
+      LINKS.forEach(renderLink);
+      NODES.forEach(renderNode);
+      renderLegend();
+
+      layer.addEventListener("click", (event) => {
+        const group = event.target.closest(".node");
+        if (group) select(group.dataset.id);
+      });
+      layer.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const group = event.target.closest(".node");
+        if (!group) return;
+        event.preventDefault();
+        select(group.dataset.id);
+      });
+      document.getElementById("card-related").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-goto]");
+        if (button) select(button.dataset.goto);
+      });
+      document.getElementById("filters").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-filter]");
+        if (button) filter(button.dataset.filter);
+      });
+
+      refreshIde();
+      const initial = location.hash.slice(1);
+      if (byId.has(initial)) select(initial);
+    </script>
+  </body>
+</html>
